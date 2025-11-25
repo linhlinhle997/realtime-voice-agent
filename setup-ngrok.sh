@@ -1,0 +1,50 @@
+#!/bin/bash
+# Setup ngrok auto-start
+
+set -e
+
+if [ ! -f .env ]; then
+    echo "Error: .env file not found"
+    exit 1
+fi
+
+source .env
+
+if [ -z "$NGROK_AUTHTOKEN" ]; then
+    echo "Error: NGROK_AUTHTOKEN not found in .env"
+    exit 1
+fi
+
+echo "Installing ngrok..."
+if ! command -v ngrok &> /dev/null; then
+    curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+    sudo apt update && sudo apt install -y ngrok
+fi
+
+echo "Configuring authtoken..."
+ngrok config add-authtoken $NGROK_AUTHTOKEN
+
+echo "Creating systemd service..."
+sudo tee /etc/systemd/system/ngrok.service > /dev/null <<EOF
+[Unit]
+Description=ngrok
+After=network.target
+
+[Service]
+ExecStart=/usr/local/bin/ngrok http 8000 --log=stdout
+Restart=always
+User=$USER
+WorkingDirectory=$PWD
+
+[Install]
+WantedBy=multi-user.target
+EOF
+
+echo "Starting ngrok service..."
+sudo systemctl daemon-reload
+sudo systemctl enable ngrok
+sudo systemctl start ngrok
+
+echo "Done! Check URL:"
+echo "curl http://localhost:4040/api/tunnels | jq -r '.tunnels[0].public_url'"
