@@ -4,6 +4,8 @@ services:
   qdrant:
     image: qdrant/qdrant:latest
     container_name: qdrant-stg
+    env_file:
+      - .env
     ports:
       - "6334:6333"
     volumes:
@@ -14,6 +16,8 @@ services:
     build: .
     image: voice-agent:stg
     container_name: voice-agent-stg
+    env_file:
+      - .env
     ports:
       - "8001:8000"
     depends_on:
